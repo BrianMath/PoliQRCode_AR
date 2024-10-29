@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>AR Básico com QR Code</title>
+	<!-- <script src="https://unpkg.com/jsqr"></script> -->
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+	<script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
+	<style>
+		body, html {
+			margin: 0;
+			padding: 0;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			height: 100vh;
+			background-color: #282c34;
+			font-family: Roboto, sans-serif;
+			color: white;
+			font-size: 1.1em;
+		}
+	
+		#container {
+			position: relative;
+			width: 80vw;
+			height: 60vh;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			border-radius: 15px;
+			overflow: hidden;
+			box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
+		}
+	
+		video {
+			position: absolute;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			object-fit: cover;
+			filter: brightness(0.8) contrast(1.2);
+		}
+	
+		canvas {
+			position: absolute;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			z-index: 1;
+		}
+	</style>	
+</head>
+<body>
+	<div id="container">
+		<video id="video" autoplay></video>
+		<canvas id="canvas"></canvas>
+	</div>
+	<h1>Use um QR Code</h1>
+	<h2>...</h2>
+	
+	<script src="jsQR.js"></script>
+	<script type="module">
+		const video = document.querySelector("video");
+		const canvas = document.querySelector("canvas");
+		const context = canvas.getContext("2d", { willReadFrequently: true });
+		const container = document.querySelector("#container");
+		const text = document.querySelector("h1");
+		const pos = document.querySelector("h2");
+		
+		async function startCamera() {
+			try {
+				if (navigator.mediaDevices.getUserMedia) {
+					const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+					video.srcObject = stream;
+					video.onloadedmetadata = () => {
+						canvas.width = video.videoWidth;
+						canvas.height = video.videoHeight;
+						scanQRCode();
+						initThreeJS();
+					};
+				}
+			} catch (error) {
+				console.log("Deu pau!");
+			}
+		}
+
+		// Configura o Three.js
+		let scene, camera, renderer, cube, sphere, pyramid;
+
+		function initThreeJS() {
+			scene = new THREE.Scene();
+			camera = new THREE.PerspectiveCamera(70, container.clientWidth / container.clientHeight, 0.01, 40);
+			renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+			renderer.setPixelRatio(window.devicePixelRatio);
+			renderer.setSize(container.clientWidth, container.clientHeight);
+			renderer.shadowMap.enabled = true;
+			container.appendChild(renderer.domElement);
+
+			const ambientLight = new THREE.AmbientLight(0x404040, 1);
+            scene.add(ambientLight);
+
+			const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+            directionalLight.position.set(5, 10, 7.5);
+            directionalLight.castShadow = true;
+            scene.add(directionalLight);
+
+			let geometry = new THREE.BoxGeometry(2, 2, 2);
+            let material = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
+            cube = new THREE.Mesh(geometry, material);
+            cube.castShadow = true;
+            cube.receiveShadow = true;
+            scene.add(cube);
+
+            geometry = new THREE.SphereGeometry(2, 32, 32);
+            material = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+            sphere = new THREE.Mesh(geometry, material);
+            sphere.castShadow = true;
+            sphere.receiveShadow = true;
+            scene.add(sphere);
+
+            geometry = new THREE.ConeGeometry(2, 2, 4);
+            material = new THREE.MeshStandardMaterial({ color: 0x0000ff });
+            pyramid = new THREE.Mesh(geometry, material);
+            pyramid.castShadow = true;
+            pyramid.receiveShadow = true;
+            scene.add(pyramid);
+
+			scene.add(cube);
+			scene.add(sphere);
+			scene.add(pyramid);
+			cube.visible = false;
+			sphere.visible = false;
+			pyramid.visible = false;
+
+			camera.position.z = 5;
+
+			window.addEventListener('resize', () => {
+				renderer.setSize(container.clientWidth, container.clientHeight);
+				camera.aspect = container.clientWidth / container.clientHeight;
+				camera.updateProjectionMatrix();
+			});
+
+			animate(); // Inicia a renderização
+		}
+
+		function animate() {
+			renderer.setAnimationLoop(render);
+		}
+		
+		function render() {
+			if (cube.visible) {
+				cube.rotation.x += 0.01;
+				cube.rotation.y += 0.01;
+			}
+			if (sphere.visible) {
+				sphere.rotation.x += 0.01;
+				sphere.rotation.y += 0.01;
+			}
+			if (pyramid.visible) {
+				pyramid.rotation.x += 0.01;
+				pyramid.rotation.y += 0.01;
+			}
+
+			renderer.render(scene, camera);
+		}
+
+		function scanQRCode() {
+			context.drawImage(video, 0, 0, canvas.width, canvas.height);
+			const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+			const code = jsQR(imageData.data, imageData.width, imageData.height);
+
+			if (code) {
+				const content = code.data;
+				cube.visible = false;
+				sphere.visible = false;
+				pyramid.visible = false;
+				
+				switch (content) {
+					case "cube":
+						cube.visible = true;
+						text.textContent = "CUBE";
+						break;
+				
+					case "sphere":
+						sphere.visible = true;
+						text.textContent = "SPHERE";
+						break;
+
+					case "pyramid":
+						pyramid.visible = true;
+						text.textContent = "PYRAMID";
+						break;
+
+					default:
+						break;
+				}
+
+				const positions = [
+					code.location.topLeftCorner.x, code.location.topLeftCorner.y,
+					code.location.topRightCorner.x, code.location.topRightCorner.y,
+					code.location.bottomRightCorner.x, code.location.bottomRightCorner.y,
+					code.location.bottomLeftCorner.x, code.location.bottomLeftCorner.y
+				];
+
+				console.log("QR Code detected:", code.data);
+                const centerX = (positions[0] + positions[4]) / 2;
+                const centerY = (positions[1] + positions[5]) / 2;
+                const x = (centerX - canvas.width / 2) / 100;
+                const y = -(centerY - canvas.height / 2) / 100;
+				
+				pos.textContent = "x: " + centerX.toFixed(2) + " y: " + centerY.toFixed(2);
+                cube.position.set(x, y, 0);
+				sphere.position.set(x, y, 0);
+				pyramid.position.set(x, y, 0);
+
+				context.beginPath();
+				context.moveTo(positions[0], positions[1]);
+                context.lineTo(positions[2], positions[3]);
+                context.lineTo(positions[4], positions[5]);
+                context.lineTo(positions[6], positions[7]);
+				context.closePath();
+				context.lineWidth = 4;
+				context.strokeStyle = "blue";
+				context.stroke();
+			}
+
+			requestAnimationFrame(scanQRCode); // Continuar escaneando
+		}
+
+		function setObject3D(type) {
+			if (scene && object3D) {
+				scene.remove(object3D); // Remove o objeto atual
+			}
+
+			if (type === "cubo") {
+				const geometry = new THREE.BoxGeometry(1, 1, 1);
+				const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+				object3D = new THREE.Mesh(geometry, material);
+			} else if (type === "esfera") {
+				const geometry = new THREE.SphereGeometry(0.5, 32, 32);
+				const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+				object3D = new THREE.Mesh(geometry, material);
+			} else if (type === "piramide") {
+				const geometry = new THREE.ConeGeometry(0.5, 1, 4);
+				const material = new THREE.MeshBasicMaterial({ color: 0x0000ff });
+				object3D = new THREE.Mesh(geometry, material);
+			}
+
+			if (scene && object3D) {
+				scene.add(object3D);
+			}
+		}
+
+		startCamera();
+	</script>
+</body>
+</html>
