@@ -4,7 +4,7 @@
 	<title>AR Básico com QR Code</title>
 	<!-- <script src="https://unpkg.com/jsqr"></script> -->
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-	<script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
+	<script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js" type="text/javascript"></script>
 	<style>
 		body, html {
 			margin: 0;
@@ -60,7 +60,6 @@
 	<h1>Use um QR Code</h1>
 	<h2>...</h2>
 	
-	<script src="jsQR.js"></script>
 	<script type="module">
 		const video = document.querySelector("video");
 		const canvas = document.querySelector("canvas");
@@ -119,6 +118,17 @@
             sphere.castShadow = true;
             sphere.receiveShadow = true;
             scene.add(sphere);
+
+			const loader = new THREE.TextureLoader();
+			loader.load('earth_texture.jpg', function(texture) {
+				const geometry = new THREE.SphereGeometry(2, 32, 32);
+				const material = new THREE.MeshStandardMaterial({ map: texture });
+				sphere = new THREE.Mesh(geometry, material);
+				sphere.castShadow = true;
+				sphere.receiveShadow = true;
+				scene.add(sphere);
+				sphere.visible = false;
+			});
 
             geometry = new THREE.ConeGeometry(2, 2, 4);
             material = new THREE.MeshStandardMaterial({ color: 0x0000ff });
@@ -209,7 +219,7 @@
                 const centerY = (positions[1] + positions[5]) / 2;
                 const x = (centerX - canvas.width / 2) / 100;
                 const y = -(centerY - canvas.height / 2) / 100;
-				
+
 				pos.textContent = "x: " + centerX.toFixed(2) + " y: " + centerY.toFixed(2);
                 cube.position.set(x, y, 0);
 				sphere.position.set(x, y, 0);
